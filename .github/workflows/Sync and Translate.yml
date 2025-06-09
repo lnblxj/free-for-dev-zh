@@ -26,7 +26,7 @@ jobs:
 
       - name: Sync and Translate
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          AI_GATEWAY_URL: ${{ secrets.AI_GATEWAY_URL }}
         run: |
           python -c '
           import requests
@@ -87,23 +87,24 @@ jobs:
               {chunk}
               """
               
-              # 调用OpenRouter API
-              api_key = os.environ.get("OPENROUTER_API_KEY")
-              if not api_key:
-                  print("Error: OPENROUTER_API_KEY not found in environment variables")
+              # 调用AI网关
+              gateway_url = os.environ.get("AI_GATEWAY_URL")
+              if not gateway_url:
+                  print("Error: AI_GATEWAY_URL not found in environment variables")
                   exit(1)
                   
               headers = {
-                  "Content-Type": "application/json",
-                  "Authorization": f"Bearer {api_key}"
+                  "Content-Type": "application/json"
               }
               
               data = {
-                  "model": "deepseek/deepseek-r1-0528-qwen3-8b:free",
-                  "messages": [
+                  "contents": [
                       {
-                          "role": "user",
-                          "content": prompt
+                          "parts": [
+                              {
+                                  "text": prompt
+                              }
+                          ]
                       }
                   ]
               }
@@ -114,7 +115,7 @@ jobs:
               while retry_count < max_retries:
                   try:
                       response = requests.post(
-                          "https://openrouter.ai/api/v1/chat/completions",
+                          gateway_url,
                           headers=headers,
                           json=data,
                           timeout=120
@@ -122,7 +123,7 @@ jobs:
                       
                       if response.status_code == 200:
                           result = response.json()
-                          translated_text = result["choices"][0]["message"]["content"]
+                          translated_text = result["candidates"][0]["content"]["parts"][0]["text"]
                           return translated_text
                       else:
                           print(f"API request failed with status code {response.status_code}: {response.text}")
